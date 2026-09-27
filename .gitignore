@@ -1,0 +1,18 @@
+# Build output
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio and VS Code local files
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# macOS Finder metadata
+.DS_Store
+
+# ASP.NET Core local secrets and logs
+appsettings.Local.json
+*.log

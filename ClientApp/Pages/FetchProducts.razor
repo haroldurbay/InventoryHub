@@ -1,0 +1,97 @@
+@page "/fetchproducts"
+@inject HttpClient Http
+@inject ILogger<FetchProducts> Logger
+@inject ProductCache ProductCache
+@using System.Text.Json
+@using ClientApp.Models
+@using ClientApp.Services
+
+<h3>Product List</h3>
+
+@if (_isLoading)
+{
+    <p>Loading products...</p>
+}
+else if (_errorMessage is not null)
+{
+    <div class="alert alert-danger" role="alert">@_errorMessage</div>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Id</th>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Stock</th>
+                <th>Category</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var product in _products)
+            {
+                <tr>
+                    <td>@product.Id</td>
+                    <td>@product.Name</td>
+                    <td>@product.Price</td>
+                    <td>@product.Stock</td>
+                    <td>@product.Category.Name</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private const string ProductsEndpoint = "productlist";
+
+    private Product[] _products = Array.Empty<Product>();
+    private bool _isLoading = true;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProductsAsync();
+    }
+
+    @* GitHub Copilot assisted with the asynchronous request and error-handling paths. *@
+    private async Task LoadProductsAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        if (ProductCache.TryGet(out var cachedProducts))
+        {
+            _products = cachedProducts;
+            _isLoading = false;
+            return;
+        }
+
+        try
+        {
+            _products = await Http.GetFromJsonAsync<Product[]>(ProductsEndpoint)
+                ?? throw new JsonException("The API returned an empty response.");
+            ProductCache.Set(_products);
+        }
+        catch (TaskCanceledException exception)
+        {
+            Logger.LogWarning(exception, "The request to {Endpoint} timed out.", ProductsEndpoint);
+            _errorMessage = "The product request timed out. Please try again.";
+        }
+        catch (HttpRequestException exception)
+        {
+            Logger.LogError(exception, "The request to {Endpoint} failed.", ProductsEndpoint);
+            _errorMessage = "Products could not be loaded because the API returned an error.";
+        }
+        catch (JsonException exception)
+        {
+            Logger.LogError(exception, "The response from {Endpoint} contained invalid JSON.", ProductsEndpoint);
+            _errorMessage = "Products could not be loaded because the API returned invalid data.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}
